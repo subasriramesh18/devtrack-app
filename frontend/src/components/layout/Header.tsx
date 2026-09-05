@@ -17,6 +17,10 @@ import {
   Clock,
   Loader2,
   X,
+  LogOut,
+  LogIn,
+  UserPlus,
+  Plus,
 } from 'lucide-react';
 import { UserProfile, DeveloperStatus } from '@/types';
 
@@ -33,6 +37,9 @@ interface HeaderProps {
   isTimerRunning: boolean;
   onToggleTimer: () => void;
   onResetTimer: () => void;
+  isAuthenticated?: boolean;
+  onOpenAuthModal?: (mode?: 'login' | 'register') => void;
+  onLogout?: () => void;
 }
 
 export function Header({
@@ -48,6 +55,9 @@ export function Header({
   isTimerRunning,
   onToggleTimer,
   onResetTimer,
+  isAuthenticated = false,
+  onOpenAuthModal,
+  onLogout,
 }: HeaderProps) {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<DeveloperStatus>(user.statusState);
@@ -274,26 +284,40 @@ export function Header({
             )}
           </div>
 
-          {/* User Profile Button */}
-          <button
-            onClick={onOpenProfile}
-            className="flex items-center gap-2.5 pl-1.5 pr-2 py-1 rounded-xl hover:bg-slate-800/60 border border-transparent hover:border-slate-800 transition-all group"
-          >
+          {/* User Profile / Auth Button */}
+          {isAuthenticated ? (
             <div className="relative">
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/40 group-hover:ring-indigo-400 transition-all"
-              />
-              <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-[#080c14] ${currentStatusObj.color}`} />
+              <button
+                onClick={onOpenProfile}
+                className="flex items-center gap-2.5 pl-1.5 pr-2 py-1 rounded-xl hover:bg-slate-800/60 border border-transparent hover:border-slate-800 transition-all group"
+              >
+                <div className="relative">
+                  <img
+                    src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/40 group-hover:ring-indigo-400 transition-all"
+                  />
+                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-[#080c14] ${currentStatusObj.color}`} />
+                </div>
+                <div className="hidden xl:block text-left">
+                  <div className="text-xs font-semibold text-slate-200 group-hover:text-white leading-none">
+                    {user.name}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-1 font-mono">@{user.handle}</div>
+                </div>
+              </button>
             </div>
-            <div className="hidden xl:block text-left">
-              <div className="text-xs font-semibold text-slate-200 group-hover:text-white leading-none">
-                {user.name}
-              </div>
-              <div className="text-[10px] text-slate-400 mt-1 font-mono">@{user.handle}</div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onOpenAuthModal?.('login')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-md shadow-indigo-600/20 active:scale-95"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
             </div>
-          </button>
+          )}
         </div>
       </div>
     </header>

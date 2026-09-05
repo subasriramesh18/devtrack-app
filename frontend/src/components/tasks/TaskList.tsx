@@ -19,6 +19,8 @@ interface TaskListProps {
   searchQuery: string;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   onOpenNewTaskModal: () => void;
+  onEditTask?: (task: Task) => void;
+  onDeleteTask?: (taskId: string) => void;
   isLoading?: boolean;
 }
 
@@ -27,6 +29,8 @@ export function TaskList({
   searchQuery,
   onStatusChange,
   onOpenNewTaskModal,
+  onEditTask,
+  onDeleteTask,
   isLoading = false,
 }: TaskListProps) {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -35,34 +39,48 @@ export function TaskList({
 
   // Filter tasks based on search, status, and priority
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch =
-      searchQuery === '' ||
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase().trim();
+    const projName =
+      task.projectName ||
+      (typeof task.project === 'object' ? (task.project as any)?.name : '') ||
+      '';
 
-    const matchesStatus = selectedStatus === 'all' || task.status === selectedStatus;
+    const matchesSearch =
+      q === '' ||
+      task.title.toLowerCase().includes(q) ||
+      (task.description && task.description.toLowerCase().includes(q)) ||
+      projName.toLowerCase().includes(q) ||
+      (task.tags && task.tags.some((t) => t.toLowerCase().includes(q)));
+
+    const normalizedTaskStatus =
+      (task.status as string) === 'in-progress' ? 'in_progress' : task.status;
+    const matchesStatus =
+      selectedStatus === 'all' ||
+      normalizedTaskStatus === selectedStatus ||
+      (selectedStatus === 'in_progress' && (task.status as string) === 'in-progress');
+
     const matchesPriority = selectedPriority === 'all' || task.priority === selectedPriority;
 
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
   const completedCount = tasks.filter((t) => t.status === 'done').length;
+  const inProgressCount = tasks.filter(
+    (t) => (t.status as string) === 'in_progress' || (t.status as string) === 'in-progress'
+  ).length;
+  const todoCount = tasks.filter((t) => t.status === 'todo').length;
   const sprintProgress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
   const statusTabs: { id: string; label: string; count: number }[] = [
     { id: 'all', label: 'All Tasks', count: tasks.length },
-    { id: 'todo', label: 'To Do', count: tasks.filter((t) => t.status === 'todo').length },
-    { id: 'in_progress', label: 'In Progress', count: tasks.filter((t) => t.status === 'in_progress').length },
-    { id: 'in_review', label: 'In Review', count: tasks.filter((t) => t.status === 'in_review').length },
+    { id: 'todo', label: 'To Do', count: todoCount },
+    { id: 'in_progress', label: 'In Progress', count: inProgressCount },
     { id: 'done', label: 'Done', count: completedCount },
   ];
 
   const kanbanColumns: { id: TaskStatus; label: string; color: string }[] = [
     { id: 'todo', label: 'To Do', color: 'border-slate-700' },
     { id: 'in_progress', label: 'In Progress', color: 'border-cyan-500/40' },
-    { id: 'in_review', label: 'In Review', color: 'border-violet-500/40' },
     { id: 'done', label: 'Completed', color: 'border-emerald-500/40' },
   ];
 
@@ -188,9 +206,13 @@ export function TaskList({
         />
       ) : viewMode === 'kanban' ? (
         /* Kanban Column View */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {kanbanColumns.map((col) => {
-            const colTasks = filteredTasks.filter((t) => t.status === col.id);
+            const colTasks = filteredTasks.filter(
+              (t) =>
+                (t.status as string) === col.id ||
+                (col.id === 'in_progress' && (t.status as string) === 'in-progress')
+            );
             return (
               <div
                 key={col.id}
@@ -210,7 +232,13 @@ export function TaskList({
                     </div>
                   ) : (
                     colTasks.map((task) => (
-                      <TaskCard key={task.id} task={task} onStatusChange={onStatusChange} />
+                      <TaskCard
+                        key={task.id || (task as any)._id}
+                        task={task}
+                        onStatusChange={onStatusChange}
+                        onEdit={onEditTask}
+                        onDelete={onDeleteTask}
+                      />
                     ))
                   )}
                 </div>
@@ -222,7 +250,13 @@ export function TaskList({
         /* Standard List View */
         <div className="space-y-3">
           {filteredTasks.map((task) => (
-            <TaskCard key={task.id} task={task} onStatusChange={onStatusChange} />
+            <TaskCard
+              key={task.id || (task as any)._id}
+              task={task}
+              onStatusChange={onStatusChange}
+              onEdit={onEditTask}
+              onDelete={onDeleteTask}
+            />
           ))}
         </div>
       )}

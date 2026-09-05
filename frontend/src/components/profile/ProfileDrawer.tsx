@@ -21,9 +21,17 @@ interface ProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserProfile;
+  onLogout?: () => void;
+  onSwitchAccount?: () => void;
 }
 
-export function ProfileDrawer({ isOpen, onClose, user }: ProfileDrawerProps) {
+export function ProfileDrawer({
+  isOpen,
+  onClose,
+  user,
+  onLogout,
+  onSwitchAccount,
+}: ProfileDrawerProps) {
   const [statusMsg, setStatusMsg] = useState(user.statusMessage);
   const [isEditingStatus, setIsEditingStatus] = useState(false);
 
@@ -55,7 +63,7 @@ export function ProfileDrawer({ isOpen, onClose, user }: ProfileDrawerProps) {
           <div className="glass-panel rounded-2xl p-5 border border-slate-800 text-center mb-6 relative overflow-hidden">
             <div className="w-20 h-20 rounded-full mx-auto p-[2px] bg-gradient-to-tr from-indigo-500 via-cyan-400 to-violet-500 mb-3">
               <img
-                src={user.avatar}
+                src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                 alt={user.name}
                 className="w-full h-full rounded-full object-cover"
               />
@@ -151,11 +159,33 @@ export function ProfileDrawer({ isOpen, onClose, user }: ProfileDrawerProps) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="pt-4 border-t border-slate-800 text-center">
+        {/* Footer Actions */}
+        <div className="pt-4 border-t border-slate-800 space-y-2">
+          {onSwitchAccount && (
+            <button
+              onClick={() => {
+                onClose();
+                onSwitchAccount();
+              }}
+              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition-colors border border-slate-800"
+            >
+              Switch Demo Account
+            </button>
+          )}
+          {onLogout && (
+            <button
+              onClick={() => {
+                onClose();
+                onLogout();
+              }}
+              className="w-full py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold transition-colors border border-rose-500/20"
+            >
+              Sign Out
+            </button>
+          )}
           <button
             onClick={onClose}
-            className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors border border-slate-700"
+            className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-medium transition-colors"
           >
             Close Drawer
           </button>

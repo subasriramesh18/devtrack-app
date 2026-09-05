@@ -1,30 +1,53 @@
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done';
+export type TaskStatus = 'todo' | 'in_progress' | 'in-progress' | 'in_review' | 'done';
 
 export interface Assignee {
+  id?: string;
+  _id?: string;
   name: string;
+  email?: string;
   avatar: string;
   role: string;
+  handle?: string;
+}
+
+export interface User {
+  id: string;
+  _id?: string;
+  name: string;
+  email: string;
+  handle?: string;
+  role?: string;
+  avatar?: string;
+  company?: string;
+  location?: string;
+  bio?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Task {
   id: string;
+  _id?: string;
   title: string;
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  projectId: string;
-  projectName: string;
-  projectColor: string;
-  assignee: Assignee;
+  projectId?: string;
+  project?: string | Project | { id: string; _id?: string; name: string; color?: string };
+  projectName?: string;
+  projectColor?: string;
+  assignee?: Assignee | User | null;
+  assigneeId?: string | null;
   dueDate: string;
   tags: string[];
   estimatedHours: number;
   loggedHours: number;
   branchName?: string;
   commitSha?: string;
-  createdAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type ProjectStatus = 'on_track' | 'at_risk' | 'delayed' | 'completed';
@@ -32,23 +55,27 @@ export type ProjectCategory = 'Frontend' | 'Backend' | 'Fullstack' | 'DevOps' | 
 
 export interface Project {
   id: string;
+  _id?: string;
   name: string;
   description: string;
   category: ProjectCategory;
   color: string;
   status: ProjectStatus;
-  progress: number;
-  totalTasks: number;
-  completedTasks: number;
-  stars: number;
-  forks: number;
-  openIssues: number;
-  openPRs: number;
-  lead: Assignee;
-  members: Assignee[];
-  repoUrl: string;
+  progress?: number;
+  totalTasks?: number;
+  completedTasks?: number;
+  stars?: number;
+  forks?: number;
+  openIssues?: number;
+  openPRs?: number;
+  owner?: User | Assignee | null;
+  lead?: User | Assignee | null;
+  leadId?: string | null;
+  members?: (User | Assignee)[];
+  repoUrl?: string;
   techStack: string[];
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface MetricCardData {
@@ -92,7 +119,9 @@ export interface DailyActivity {
 export type DeveloperStatus = 'focus' | 'coding' | 'reviewing' | 'meeting' | 'away';
 
 export interface UserProfile {
+  id?: string;
   name: string;
+  email?: string;
   handle: string;
   title: string;
   company: string;
@@ -114,3 +143,18 @@ export interface UserProfile {
 }
 
 export type ViewTab = 'dashboard' | 'projects' | 'tasks' | 'analytics' | 'activity' | 'profile';
+
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+  meta?: {
+    total?: number;
+    [key: string]: any;
+  };
+}
+
+export interface AuthResponseData {
+  user: User;
+  token: string;
+}

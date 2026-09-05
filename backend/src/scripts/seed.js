@@ -17,11 +17,12 @@ const seedDatabase = async () => {
     ]);
 
     // 2. Seed Users
-    console.log('👤 Seeding Users...');
+    console.log('👤 Seeding Users with credentials...');
     const usersData = [
       {
         name: 'Alex Rivera',
         email: 'alex.rivera@devtrack.io',
+        password: 'password123',
         handle: 'arivera',
         role: 'Principal Architect',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -32,6 +33,7 @@ const seedDatabase = async () => {
       {
         name: 'Sarah Chen',
         email: 'sarah.chen@devtrack.io',
+        password: 'password123',
         handle: 'schen',
         role: 'Staff Frontend Engineer',
         avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
@@ -42,6 +44,7 @@ const seedDatabase = async () => {
       {
         name: 'Elena Rostova',
         email: 'elena.rostova@devtrack.io',
+        password: 'password123',
         handle: 'erostova',
         role: 'Lead DevOps & Cloud Engineer',
         avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
@@ -52,6 +55,7 @@ const seedDatabase = async () => {
       {
         name: 'Marcus Brody',
         email: 'marcus.brody@devtrack.io',
+        password: 'password123',
         handle: 'mbrody',
         role: 'Senior Backend Engineer',
         avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
@@ -61,8 +65,8 @@ const seedDatabase = async () => {
       },
     ];
 
-    const createdUsers = await User.insertMany(usersData);
-    console.log(`✅ Seeded ${createdUsers.length} users.`);
+    const createdUsers = await Promise.all(usersData.map((u) => User.create(u)));
+    console.log(`✅ Seeded ${createdUsers.length} users with hashed passwords.`);
 
     const userMap = {
       alex: createdUsers[0]._id,

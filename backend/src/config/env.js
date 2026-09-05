@@ -9,6 +9,8 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   corsOrigin: process.env.CORS_ORIGIN || '*',
   mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/devtrack',
+  jwtSecret: process.env.JWT_SECRET || 'devtrack_jwt_secret_key_2026_super_secure_auth',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   isProduction: process.env.NODE_ENV === 'production',
   isDevelopment: process.env.NODE_ENV === 'development',
   isTest: process.env.NODE_ENV === 'test',

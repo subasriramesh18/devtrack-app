@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const config = require('./config/env');
 const apiRoutes = require('./routes');
 const notFoundHandler = require('./middlewares/notFoundHandler');
@@ -12,18 +13,20 @@ const app = express();
 // GLOBAL MIDDLEWARES
 // ==========================================
 
-// Enable CORS
+// Enable CORS with credentials support
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin: config.corsOrigin === '*' ? true : config.corsOrigin,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-// Body Parsers
+// Body Parsers & Cookie Parser
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(cookieParser());
 
 // Request Logging (skip during automated tests)
 if (!config.isTest) {

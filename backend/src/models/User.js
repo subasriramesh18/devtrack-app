@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
@@ -15,6 +16,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
+    },
+    password: {
+      type: String,
+      minlength: [6, 'Password must be at least 6 characters'],
+      select: false,
     },
     handle: {
       type: String,
@@ -55,6 +61,7 @@ const userSchema = new mongoose.Schema(
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;
+        delete ret.password;
         return ret;
       },
     },
@@ -63,20 +70,34 @@ const userSchema = new mongoose.Schema(
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;
+        delete ret.password;
         return ret;
       },
     },
   }
 );
 
-// Pre-save hook to generate handle if not provided
-userSchema.pre('save', function (next) {
+// Pre-save hook to generate handle and hash password if modified
+userSchema.pre('save', async function (next) {
   if (!this.handle && this.name) {
     this.handle = this.name.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
+
+  if (this.isModified('password') && this.password) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
+
   next();
 });
+
+// Compare password method
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false;
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
+

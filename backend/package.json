@@ -1,16 +1,19 @@
 {
   "name": "devtrack-backend",
   "version": "1.0.0",
-  "description": "Users, Projects & Tasks REST API for DevTrack",
+  "description": "Users, Projects & Tasks REST API with MongoDB & Mongoose for DevTrack",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "seed": "node src/scripts/seed.js",
     "test": "node --test test/*.test.js"
   },
   "keywords": [
     "express",
     "rest-api",
+    "mongodb",
+    "mongoose",
     "zod",
     "node",
     "devtrack"
@@ -21,6 +24,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "mongoose": "^8.24.4",
     "morgan": "^1.10.0",
     "uuid": "^11.1.0",
     "zod": "^3.24.2"

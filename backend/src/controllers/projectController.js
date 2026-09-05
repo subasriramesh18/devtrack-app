@@ -1,16 +1,66 @@
-const dataStore = require('../store/dataStore');
+const Project = require('../models/Project');
+const User = require('../models/User');
+const Task = require('../models/Task');
 const AppError = require('../utils/AppError');
 const { sendSuccess, sendCreated } = require('../utils/response');
 
 /**
- * Controller for Project Management
+ * Helper to compute task metrics (progress %, totalTasks, completedTasks) for a project
+ */
+const enrichProjectWithTaskStats = async (projectDoc) => {
+  const projectObj = projectDoc.toObject ? projectDoc.toObject() : { ...projectDoc };
+  const projectId = projectDoc._id || projectDoc.id;
+
+  const [totalTasks, completedTasks] = await Promise.all([
+    Task.countDocuments({ project: projectId }),
+    Task.countDocuments({ project: projectId, status: 'done' }),
+  ]);
+
+  const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  return {
+    ...projectObj,
+    totalTasks,
+    completedTasks,
+    progress,
+  };
+};
+
+/**
+ * Controller for Project Management using MongoDB & Mongoose
  */
 const getAllProjects = async (req, res, next) => {
   try {
     const { category, status, search } = req.query;
-    const projects = await dataStore.getProjects({ category, status, search });
-    return sendSuccess(res, projects, 'Projects retrieved successfully', 200, {
-      total: projects.length,
+    const filter = {};
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { name: searchRegex },
+        { description: searchRegex },
+        { techStack: searchRegex },
+      ];
+    }
+
+    const projects = await Project.find(filter)
+      .populate('owner')
+      .sort({ createdAt: -1 });
+
+    const enrichedProjects = await Promise.all(
+      projects.map((p) => enrichProjectWithTaskStats(p))
+    );
+
+    return sendSuccess(res, enrichedProjects, 'Projects retrieved successfully', 200, {
+      total: enrichedProjects.length,
     });
   } catch (error) {
     return next(error);
@@ -20,13 +70,14 @@ const getAllProjects = async (req, res, next) => {
 const getProjectById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const project = await dataStore.getProjectById(id);
+    const project = await Project.findById(id).populate('owner');
 
     if (!project) {
       return next(AppError.notFound(`Project with ID '${id}' not found`));
     }
 
-    return sendSuccess(res, project, 'Project retrieved successfully');
+    const enrichedProject = await enrichProjectWithTaskStats(project);
+    return sendSuccess(res, enrichedProject, 'Project retrieved successfully');
   } catch (error) {
     return next(error);
   }
@@ -35,17 +86,27 @@ const getProjectById = async (req, res, next) => {
 const getProjectTasks = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const project = await dataStore.getProjectById(id);
+    const project = await Project.findById(id);
 
     if (!project) {
       return next(AppError.notFound(`Project with ID '${id}' not found`));
     }
 
-    const tasks = await dataStore.getTasksByProjectId(id);
-    return sendSuccess(res, tasks, `Tasks for project '${project.name}' retrieved successfully`, 200, {
-      projectId: id,
-      totalTasks: tasks.length,
-    });
+    const tasks = await Task.find({ project: id })
+      .populate('assignee')
+      .populate('project')
+      .sort({ createdAt: -1 });
+
+    return sendSuccess(
+      res,
+      tasks,
+      `Tasks for project '${project.name}' retrieved successfully`,
+      200,
+      {
+        projectId: id,
+        totalTasks: tasks.length,
+      }
+    );
   } catch (error) {
     return next(error);
   }
@@ -53,18 +114,22 @@ const getProjectTasks = async (req, res, next) => {
 
 const createProject = async (req, res, next) => {
   try {
-    const { leadId } = req.body;
+    const payload = { ...req.body };
+    const ownerId = payload.owner || payload.leadId;
 
-    // Validate lead user existence if leadId provided
-    if (leadId) {
-      const userExists = await dataStore.getUserById(leadId);
+    if (ownerId) {
+      const userExists = await User.findById(ownerId);
       if (!userExists) {
-        return next(AppError.badRequest(`Lead user with ID '${leadId}' does not exist`));
+        return next(AppError.badRequest(`Owner/Lead user with ID '${ownerId}' does not exist`));
       }
+      payload.owner = ownerId;
     }
 
-    const newProject = await dataStore.createProject(req.body);
-    return sendCreated(res, newProject, 'Project created successfully');
+    const newProject = await Project.create(payload);
+    await newProject.populate('owner');
+
+    const enrichedProject = await enrichProjectWithTaskStats(newProject);
+    return sendCreated(res, enrichedProject, 'Project created successfully');
   } catch (error) {
     return next(error);
   }
@@ -73,21 +138,30 @@ const createProject = async (req, res, next) => {
 const updateProject = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const existingProject = await dataStore.getProjectById(id);
+    const existingProject = await Project.findById(id);
 
     if (!existingProject) {
       return next(AppError.notFound(`Project with ID '${id}' not found`));
     }
 
-    if (req.body.leadId) {
-      const userExists = await dataStore.getUserById(req.body.leadId);
+    const payload = { ...req.body };
+    const ownerId = payload.owner || payload.leadId;
+
+    if (ownerId) {
+      const userExists = await User.findById(ownerId);
       if (!userExists) {
-        return next(AppError.badRequest(`Lead user with ID '${req.body.leadId}' does not exist`));
+        return next(AppError.badRequest(`Owner/Lead user with ID '${ownerId}' does not exist`));
       }
+      payload.owner = ownerId;
     }
 
-    const updatedProject = await dataStore.updateProject(id, req.body);
-    return sendSuccess(res, updatedProject, 'Project updated successfully');
+    const updatedProject = await Project.findByIdAndUpdate(id, payload, {
+      new: true,
+      runValidators: true,
+    }).populate('owner');
+
+    const enrichedProject = await enrichProjectWithTaskStats(updatedProject);
+    return sendSuccess(res, enrichedProject, 'Project updated successfully');
   } catch (error) {
     return next(error);
   }
@@ -96,11 +170,14 @@ const updateProject = async (req, res, next) => {
 const deleteProject = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const deleted = await dataStore.deleteProject(id);
+    const project = await Project.findByIdAndDelete(id);
 
-    if (!deleted) {
+    if (!project) {
       return next(AppError.notFound(`Project with ID '${id}' not found`));
     }
+
+    // Cascade delete all tasks belonging to this project
+    await Task.deleteMany({ project: id });
 
     return sendSuccess(res, { id }, 'Project and associated tasks deleted successfully');
   } catch (error) {

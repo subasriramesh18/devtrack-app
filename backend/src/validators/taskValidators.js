@@ -16,7 +16,9 @@ const createTaskSchema = z.object({
   description: z.string().trim().max(2000, 'Description cannot exceed 2000 characters').optional().default(''),
   status: taskStatusEnum.optional().default('todo'),
   priority: taskPriorityEnum.optional().default('medium'),
-  projectId: z.string({ required_error: 'projectId is required' }).trim().min(1, 'projectId cannot be empty'),
+  project: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1).optional(),
+  assignee: z.string().trim().nullable().optional(),
   assigneeId: z.string().trim().nullable().optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dueDate must be in YYYY-MM-DD format').optional(),
   tags: z.array(z.string().trim()).optional().default([]),
@@ -24,6 +26,9 @@ const createTaskSchema = z.object({
   loggedHours: z.number().min(0, 'loggedHours must be a non-negative number').optional().default(0),
   branchName: z.string().trim().optional(),
   commitSha: z.string().trim().optional(),
+}).refine((data) => data.project || data.projectId, {
+  message: 'projectId or project is required',
+  path: ['projectId'],
 });
 
 const updateTaskSchema = z.object({
@@ -31,7 +36,9 @@ const updateTaskSchema = z.object({
   description: z.string().trim().max(2000, 'Description cannot exceed 2000 characters').optional(),
   status: taskStatusEnum.optional(),
   priority: taskPriorityEnum.optional(),
-  projectId: z.string().trim().min(1, 'projectId cannot be empty').optional(),
+  project: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1).optional(),
+  assignee: z.string().trim().nullable().optional(),
   assigneeId: z.string().trim().nullable().optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'dueDate must be in YYYY-MM-DD format').optional(),
   tags: z.array(z.string().trim()).optional(),

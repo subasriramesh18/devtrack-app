@@ -158,3 +158,11 @@ export interface AuthResponseData {
   user: User;
   token: string;
 }
+
+export interface AiSuggestedTask {
+  title: string;
+  description: string;
+  priority: TaskPriority;
+  estimatedHours: number;
+  tags: string[];
+}

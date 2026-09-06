@@ -1,4 +1,4 @@
-import { Project, Task, User, ApiResponse, AuthResponseData } from '@/types';
+import { Project, Task, User, ApiResponse, AuthResponseData, AiSuggestedTask } from '@/types';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
@@ -225,6 +225,21 @@ export const api = {
     async delete(id: string): Promise<ApiResponse<{ id: string }>> {
       return fetchApi<{ id: string }>(`/tasks/${id}`, {
         method: 'DELETE',
+      });
+    },
+  },
+
+  // ==========================================
+  // AI ASSISTANT
+  // ==========================================
+  ai: {
+    async generateTasks(
+      goal: string,
+      projectName?: string
+    ): Promise<ApiResponse<AiSuggestedTask[]>> {
+      return fetchApi<AiSuggestedTask[]>('/ai/generate-tasks', {
+        method: 'POST',
+        body: JSON.stringify({ goal, projectName }),
       });
     },
   },

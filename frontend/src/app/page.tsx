@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user: authUser, isAuthenticated, logout } = useAuth();
+  const { user: authUser, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
 
   // State management
   const [currentTab, setCurrentTab] = useState<ViewTab>('dashboard');
@@ -443,17 +443,49 @@ export default function DashboardPage() {
   const openTasksCount = tasks.filter((t) => t.status !== 'done').length;
   const isLoading = isLoadingData || isSimulatedLoading;
 
+  // Block access entirely until auth check completes and user is verified
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#080c14] flex items-center justify-center">
+        <div className="text-slate-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#080c14] flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <h1 className="text-2xl font-bold text-white">Welcome to DevTrack</h1>
+          <p className="text-sm text-slate-400">Please sign in to view your dashboard.</p>
+          <button
+            onClick={() => {
+              setAuthModalMode('login');
+              setIsAuthModalOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all"
+          >
+            Sign In
+          </button>
+        </div>
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          defaultMode={authModalMode}
+        />
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-[#080c14] text-slate-100 flex flex-col antialiased">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-200">
           <div
-            className={`px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border text-xs font-semibold backdrop-blur-xl ${
-              toastMessage.type === 'error'
-                ? 'bg-rose-950/90 text-rose-200 border-rose-500/40 shadow-rose-950/50'
-                : 'bg-emerald-950/90 text-emerald-200 border-emerald-500/40 shadow-emerald-950/50'
-            }`}
+            className={`px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border text-xs font-semibold backdrop-blur-xl ${toastMessage.type === 'error'
+              ? 'bg-rose-950/90 text-rose-200 border-rose-500/40 shadow-rose-950/50'
+              : 'bg-emerald-950/90 text-emerald-200 border-emerald-500/40 shadow-emerald-950/50'
+              }`}
           >
             {toastMessage.type === 'error' ? (
               <AlertCircle className="w-4 h-4 text-rose-400" />

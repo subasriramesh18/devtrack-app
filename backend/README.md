@@ -68,6 +68,8 @@ Server will start listening on **`http://localhost:5000`**.
 | `PUT` | `/api/v1/tasks/:id` | Update task details | `200 OK` / `400 Bad Request` / `404 Not Found` |
 | `PATCH` | `/api/v1/tasks/:id/status` | Update task status (`todo`, `in-progress`, `done`) | `200 OK` / `400 Bad Request` / `404 Not Found` |
 | `DELETE` | `/api/v1/tasks/:id` | Delete task | `200 OK` / `404 Not Found` |
+| **AI Assistant** | | | |
+| `POST` | `/api/v1/ai/generate-tasks` | Generate 4-6 AI suggested sprint tasks from project goal/description using Google Gemini | `200 OK` / `400 Bad Request` / `429 Too Many Requests` / `500 Server Error` |
 
 ---
 
@@ -736,6 +738,95 @@ curl -X PATCH http://localhost:5000/api/v1/tasks/tsk-1/status \
   -H "Content-Type: application/json" \
   -d '{"status": "in-progress"}'
 ```
+
+---
+
+## 🤖 AI-Assisted Task Generation
+
+### `POST /api/v1/ai/generate-tasks`
+
+Leverages the **Google Gemini API** to analyze a project goal or feature description and generate **4 to 6 structured, actionable sprint tasks** for engineering teams.
+
+#### Prerequisites
+Set `GEMINI_API_KEY` in `backend/.env`:
+```ini
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+Get a free API key at: https://aistudio.google.com/apikey
+
+#### Request Body
+| Field | Type | Required | Description |
+|:--- |:--- |:--- |:--- |
+| `goal` | `string` (3–1000 chars) | Yes* | Project goal or feature description |
+| `prompt` | `string` (3–1000 chars) | Yes* | Alternative field alias for `goal` |
+| `description` | `string` (3–1000 chars) | Yes* | Alternative field alias for `goal` |
+| `topic` | `string` (3–1000 chars) | Yes* | Alternative field alias for `goal` |
+| `projectName` | `string` | No | Optional project context to improve suggestion quality |
+
+> **\* At least one of `goal`, `prompt`, `description`, or `topic` must be provided.**
+
+#### Success Response — `200 OK`
+```json
+{
+  "success": true,
+  "message": "Suggested tasks generated successfully",
+  "data": [
+    {
+      "title": "Implement JWT Token Issuance & Refresh Endpoint",
+      "description": "Set up /auth/token and /auth/refresh routes using jsonwebtoken. Implement RS256 signing, access token expiry of 15m, and refresh token rotation stored in Redis with 7d TTL.",
+      "priority": "high",
+      "estimatedHours": 6,
+      "tags": ["Backend", "Auth", "Security"]
+    },
+    {
+      "title": "Configure Google OAuth2 Provider Integration",
+      "description": "Integrate passport-google-oauth20 strategy. Handle callback URL registration in Google Cloud Console, map OAuth profile to internal User model, and return JWT on success.",
+      "priority": "high",
+      "estimatedHours": 5,
+      "tags": ["Backend", "OAuth", "Auth"]
+    }
+  ],
+  "meta": {
+    "count": 5,
+    "goal": "Build a user authentication system with JWT and Google OAuth"
+  }
+}
+```
+
+#### Task Object Schema
+| Field | Type | Values |
+|:--- |:--- |:--- |
+| `title` | `string` | Concise, action-oriented engineering task title |
+| `description` | `string` | Technical summary with acceptance criteria |
+| `priority` | `string` | `"urgent"` \| `"high"` \| `"medium"` \| `"low"` |
+| `estimatedHours` | `number` | Realistic hours estimate (2–16h typical range) |
+| `tags` | `string[]` | 1–3 relevant technical tags |
+
+#### Error Responses
+| Status | Scenario | Response Message |
+|:--- |:--- |:--- |
+| `400 Bad Request` | Missing or too-short `goal` | `"Please provide a project goal or description"` |
+| `400 Bad Request` | Missing API key in `.env` | `"Gemini API key is not configured. Please set GEMINI_API_KEY in backend/.env"` |
+| `401 Unauthorized` | API key invalid or expired | `"Google Gemini API Key is invalid or expired."` |
+| `429 Too Many Requests` | Rate limit or quota exceeded | `"Google Gemini rate limit or quota exceeded. Please try again in a few moments."` |
+| `500 Internal Server Error` | Gemini failure / unparseable response | `"Failed to generate tasks using Google Gemini: <reason>"` |
+
+#### Example cURL
+```bash
+curl -X POST http://localhost:5000/api/v1/ai/generate-tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "goal": "Build a user authentication system with JWT and Google OAuth",
+    "projectName": "DevTrack Core API"
+  }'
+```
+
+#### Model Strategy
+The endpoint tries these Gemini models in order (with automatic fallback):
+1. `gemini-1.5-flash` (primary — fastest & most cost-efficient)
+2. `gemini-2.0-flash` (fallback)
+3. `gemini-1.5-pro` (fallback — most capable)
+4. `gemini-pro` (legacy fallback)
 
 ---
 

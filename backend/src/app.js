@@ -48,6 +48,7 @@ app.get('/', (req, res) => {
       users: '/api/v1/users',
       projects: '/api/v1/projects',
       tasks: '/api/v1/tasks',
+      aiGenerateTasks: '/api/v1/ai/generate-tasks',
       health: '/health',
     },
   });

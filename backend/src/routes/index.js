@@ -5,11 +5,13 @@ const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const projectRoutes = require('./projectRoutes');
 const taskRoutes = require('./taskRoutes');
+const aiRoutes = require('./aiRoutes');
 
 // Mount entity sub-routers
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/projects', projectRoutes);
 router.use('/tasks', taskRoutes);
+router.use('/ai', aiRoutes);
 
 module.exports = router;

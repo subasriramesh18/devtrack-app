@@ -6,16 +6,13 @@ import {
   Plus,
   Edit2,
   Sparkles,
-  CheckSquare,
-  Tag,
-  Calendar,
-  User as UserIcon,
-  Clock,
-  GitBranch,
   Loader2,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import { Task, TaskPriority, TaskStatus, Project, User } from '@/types';
+import { Task, TaskPriority, TaskStatus, Project, User, AiSuggestedTask } from '@/types';
+import { AiTaskSuggester } from './AiTaskSuggester';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -49,6 +46,9 @@ export function TaskModal({
   const [branchName, setBranchName] = useState('feat/sprint-feature');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // AI Suggester state
+  const [showAiSuggester, setShowAiSuggester] = useState(false);
 
   useEffect(() => {
     if (taskToEdit) {
@@ -93,9 +93,21 @@ export function TaskModal({
       setBranchName('feat/new-sprint-issue');
     }
     setFormError(null);
+    setShowAiSuggester(false);
   }, [taskToEdit, isOpen, projects, users]);
 
   if (!isOpen) return null;
+
+  /** Pre-fill form from AI suggestion */
+  const handleAiSelectTask = (suggestion: AiSuggestedTask) => {
+    setTitle(suggestion.title);
+    setDescription(suggestion.description);
+    setPriority(suggestion.priority || 'medium');
+    setEstimatedHours(suggestion.estimatedHours || 4);
+    setTagInput(suggestion.tags?.join(', ') || '');
+    setShowAiSuggester(false);
+    setFormError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +159,11 @@ export function TaskModal({
     }
   };
 
+  // Selected project name for AI context
+  const selectedProject = projects.find(
+    (p) => (p.id || (p as any)._id) === projectId
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
@@ -155,9 +172,14 @@ export function TaskModal({
         onClick={onClose}
       />
 
-      {/* Modal Card */}
-      <div className="relative w-full max-w-lg rounded-3xl bg-[#0d1322] border border-slate-800 shadow-2xl p-6 z-10 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+      {/* Modal Card — wider when AI suggester is open */}
+      <div
+        className={`relative w-full rounded-3xl bg-[#0d1322] border border-slate-800 shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-150 transition-all ${
+          showAiSuggester ? 'max-w-3xl' : 'max-w-lg'
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
               {isEditing ? <Edit2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -173,208 +195,250 @@ export function TaskModal({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* AI Suggest Button — only show when creating */}
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => setShowAiSuggester((v) => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                  showAiSuggester
+                    ? 'bg-violet-600/20 border-violet-500/50 text-violet-300 hover:bg-violet-600/30'
+                    : 'bg-slate-800/80 border-slate-700/60 text-slate-300 hover:text-violet-300 hover:border-violet-500/40 hover:bg-violet-600/10'
+                }`}
+                title="AI Task Suggestions"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>✨ Suggest with AI</span>
+                {showAiSuggester ? (
+                  <ChevronUp className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {formError && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">
-            {formError}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          {/* Title */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Task Title <span className="text-rose-400">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Implement resilient WebSocket reconnect algorithm"
-              className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Description</label>
-            <textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Provide technical context, acceptance criteria, or PR references..."
-              className="w-full px-3.5 py-2 rounded-xl text-sm bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none resize-none"
-            />
-          </div>
-
-          {/* Project & Assignee row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Target Project <span className="text-rose-400">*</span>
-              </label>
-              <select
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                required
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
-              >
-                {projects.map((p) => (
-                  <option key={p.id || (p as any)._id} value={p.id || (p as any)._id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Assignee</label>
-              <select
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
-              >
-                <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u.id || (u as any)._id} value={u.id || (u as any)._id}>
-                    {u.name} ({u.role || 'Engineer'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Priority & Status row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Priority Level</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
-              >
-                <option value="urgent">🔥 Urgent</option>
-                <option value="high">⚡ High</option>
-                <option value="medium">🔷 Medium</option>
-                <option value="low">☕ Low</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Sprint Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
-              >
-                <option value="todo">📋 To Do</option>
-                <option value="in_progress">⚡ In Progress</option>
-                <option value="done">✅ Done</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Due Date & Branch row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white focus:border-indigo-500 outline-none"
+        {/* Body: side-by-side layout when AI panel is open */}
+        <div className={`flex gap-0 ${showAiSuggester ? 'divide-x divide-slate-800' : ''}`}>
+          {/* AI Task Suggester Panel */}
+          {showAiSuggester && (
+            <div className="w-[52%] p-5 overflow-y-auto max-h-[80vh]">
+              <AiTaskSuggester
+                onSelectTask={handleAiSelectTask}
+                onClose={() => setShowAiSuggester(false)}
+                projectName={selectedProject?.name}
               />
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Git Branch Name</label>
-              <input
-                type="text"
-                value={branchName}
-                onChange={(e) => setBranchName(e.target.value)}
-                placeholder="feat/my-branch"
-                className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none font-mono"
-              />
-            </div>
+          {/* Task Form */}
+          <div className={`p-6 ${showAiSuggester ? 'flex-1 overflow-y-auto max-h-[80vh]' : 'w-full'}`}>
+            {formError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Task Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Implement resilient WebSocket reconnect algorithm"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Description</label>
+                <textarea
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Provide technical context, acceptance criteria, or PR references..."
+                  className="w-full px-3.5 py-2 rounded-xl text-sm bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none resize-none"
+                />
+              </div>
+
+              {/* Project & Assignee row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Target Project <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    value={projectId}
+                    onChange={(e) => setProjectId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id || (p as any)._id} value={p.id || (p as any)._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Assignee</label>
+                  <select
+                    value={assigneeId}
+                    onChange={(e) => setAssigneeId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
+                  >
+                    <option value="">Unassigned</option>
+                    {users.map((u) => (
+                      <option key={u.id || (u as any)._id} value={u.id || (u as any)._id}>
+                        {u.name} ({u.role || 'Engineer'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Priority & Status row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Priority Level</label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
+                  >
+                    <option value="urgent">🔥 Urgent</option>
+                    <option value="high">⚡ High</option>
+                    <option value="medium">🔷 Medium</option>
+                    <option value="low">☕ Low</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Sprint Status</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-slate-200 focus:border-indigo-500 outline-none"
+                  >
+                    <option value="todo">📋 To Do</option>
+                    <option value="in_progress">⚡ In Progress</option>
+                    <option value="done">✅ Done</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Due Date & Branch row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Due Date</label>
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white focus:border-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Git Branch Name</label>
+                  <input
+                    type="text"
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
+                    placeholder="feat/my-branch"
+                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Estimated & Logged Hours row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Estimated Hours</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={estimatedHours}
+                    onChange={(e) => setEstimatedHours(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white focus:border-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Logged Hours</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={loggedHours}
+                    onChange={(e) => setLoggedHours(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Tags (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="e.g. Auth, Security, Backend"
+                  className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-lg shadow-indigo-600/25 active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>{isEditing ? 'Save Changes' : 'Add Task to Sprint'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
-
-          {/* Estimated & Logged Hours row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Estimated Hours</label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={estimatedHours}
-                onChange={(e) => setEstimatedHours(Number(e.target.value))}
-                className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white focus:border-indigo-500 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Logged Hours</label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={loggedHours}
-                onChange={(e) => setLoggedHours(Number(e.target.value))}
-                className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white focus:border-indigo-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Tags (comma separated)
-            </label>
-            <input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              placeholder="e.g. Auth, Security, Backend"
-              className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all shadow-lg shadow-indigo-600/25 active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  <span>{isEditing ? 'Save Changes' : 'Add Task to Sprint'}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );

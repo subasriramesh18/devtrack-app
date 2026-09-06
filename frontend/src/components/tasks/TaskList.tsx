@@ -12,6 +12,7 @@ import {
   List as ListIcon,
   SlidersHorizontal,
   Flame,
+  Sparkles,
 } from 'lucide-react';
 
 interface TaskListProps {
@@ -127,6 +128,15 @@ export function TaskList({
               <Kanban className="w-4 h-4" />
             </button>
           </div>
+
+          <button
+            onClick={onOpenNewTaskModal}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-600/15 hover:bg-violet-600/25 text-violet-300 hover:text-violet-200 text-xs font-semibold transition-all border border-violet-500/30 hover:border-violet-500/50 active:scale-95 whitespace-nowrap"
+            title="Generate tasks using AI"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            ✨ AI Suggestions
+          </button>
 
           <button
             onClick={onOpenNewTaskModal}
